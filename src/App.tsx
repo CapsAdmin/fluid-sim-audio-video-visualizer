@@ -2,8 +2,6 @@ import { useEffect, useRef, useState } from "react"
 import { Simulation } from "./Simulation"
 import exampleVideos from "./assets/videos.json"
 
-let VIDEO_CONNECTED_TO_AUDIO = false
-
 let audioContext = null as unknown as AudioContext
 let audioAnalyser = null as unknown as AnalyserNode
 let fftArray = null as unknown as Float32Array
@@ -23,7 +21,7 @@ const ensureAudioContext = () => {
 }
 
 const audioSources = new Map<string, MediaStreamAudioSourceNode>()
-let currentVideoSource = exampleVideos[0].source
+let currentVideoSource = "none"
 
 const removeAudioSource = async (deviceId: string) => {
 	const source = audioSources.get(deviceId)
@@ -60,11 +58,48 @@ const addAudioSource = async (deviceId: string) => {
 	console.log("started listening to " + deviceId)
 }
 
+let streamConnections = new WeakMap<HTMLVideoElement, MediaElementAudioSourceNode>()
+
+const connectVideoToAudio = () => {
+	const video = document.getElementById("videoPlayer") as HTMLVideoElement
+	if (!video) return
+	ensureAudioContext()
+
+	if (streamConnections.has(video)) return
+
+	const audioSource = audioContext.createMediaElementSource(video)
+	streamConnections.set(video, audioSource)
+
+	audioSource.connect(audioAnalyser)
+	audioSource.connect(audioContext.destination)
+}
+
 const setVideoSource = async (source: string) => {
 	const video = document.getElementById("videoPlayer") as HTMLVideoElement
 	if (!video) return
 
-	if (source.startsWith("http")) {
+	if (source === "desktop") {
+		const desktopStream = await (navigator.mediaDevices as MediaDevices & { getDisplayMedia: (opts: MediaStreamConstraints) => MediaStream }).getDisplayMedia({
+			video: true,
+			audio: {
+				echoCancellation: false,
+				noiseSuppression: false,
+				autoGainControl: false,
+				channelCount: 2,
+				latency: 0.02,
+			},
+		})
+
+		const desktopSource = audioContext.createMediaStreamSource(desktopStream)
+		desktopSource.connect(audioAnalyser)
+		desktopSource.connect(audioContext.destination)
+
+		const stream = new MediaStream([...desktopStream.getVideoTracks()])
+
+		video.srcObject = stream
+	} else if (source === "none") {
+		video.src = ""
+	} else if (source.startsWith("http")) {
 		video.src = source
 	} else {
 		video.srcObject = await navigator.mediaDevices.getUserMedia({
@@ -78,10 +113,6 @@ const setVideoSource = async (source: string) => {
 	currentVideoSource = source
 }
 
-const getVideoSource = async () => {
-	return currentVideoSource
-}
-
 function App() {
 	const simRef = useRef<Simulation | null>(null)
 	const [devices, setDevices] = useState<MediaDeviceInfo[]>([])
@@ -91,6 +122,7 @@ function App() {
 		;(async () => {
 			setDevices(await navigator.mediaDevices.enumerateDevices())
 		})()
+		window.scrollTo(0, -99999)
 	}, [])
 
 	return (
@@ -103,9 +135,10 @@ function App() {
 					if (!video) return
 
 					sim.PreDraw = () => {
-						audioAnalyser.getFloatTimeDomainData(fftArray) // move me out
-
-						sim.UpdateFFT(fftArray)
+						if (audioAnalyser) {
+							audioAnalyser.getFloatTimeDomainData(fftArray) // move me out
+							sim.UpdateFFT(fftArray)
+						}
 
 						if (video.readyState >= 2) {
 							sim.UpdateTexture(video)
@@ -201,9 +234,16 @@ function App() {
 						onChange={(e) => {
 							ensureAudioContext()
 							setVideoSource(e.currentTarget.value)
+							connectVideoToAudio()
 							render({})
 						}}
 					>
+						<option key={"none"} value={"none"}>
+							{"None"}
+						</option>
+						<option key={"desktop"} value={"desktop"}>
+							{"Desktop"}
+						</option>
 						{devices.map((info) => {
 							if (info.kind === "videoinput") {
 								return (
@@ -225,58 +265,9 @@ function App() {
 				</ul>
 			</div>
 
-			<button
-				onClick={async () => {
-					const video = document.getElementById("videoPlayer") as HTMLVideoElement
-					if (!video) return
-					const desktopStream = await (navigator.mediaDevices as MediaDevices & { getDisplayMedia: (opts: MediaStreamConstraints) => MediaStream }).getDisplayMedia({
-						video: true,
-						audio: {
-							echoCancellation: false,
-							noiseSuppression: false,
-							autoGainControl: false,
-							channelCount: 2,
-							latency: 0.02,
-						},
-					})
-
-					const videoStream = desktopStream
-
-					const desktopSource = audioContext.createMediaStreamSource(videoStream)
-					desktopSource.connect(audioAnalyser)
-					desktopSource.connect(audioContext.destination)
-
-					const stream = new MediaStream([...videoStream.getVideoTracks()])
-
-					video.srcObject = stream
-				}}
-			>
-				Desktop
-			</button>
-
 			<div>
 				<h2>video player</h2>
-				<video
-					key="videoplayer"
-					ref={(e) => {
-						if (!e) return
-						setVideoSource(currentVideoSource)
-
-						if (!VIDEO_CONNECTED_TO_AUDIO) {
-							ensureAudioContext()
-							const audioSource = audioContext.createMediaElementSource(e)
-
-							audioSource.connect(audioAnalyser)
-							audioSource.connect(audioContext.destination)
-							VIDEO_CONNECTED_TO_AUDIO = true
-						}
-					}}
-					id="videoPlayer"
-					style={{ width: 512 }}
-					controls
-					crossOrigin="anonymous"
-					src=""
-				/>
+				<video key="videoplayer" id="videoPlayer" style={{ width: 512 }} controls crossOrigin="anonymous" src="" autoPlay />
 			</div>
 		</div>
 	)
