@@ -1,55 +1,51 @@
 {
-  "name": "fluid-sim-video-music-visualizer",
-  "version": "0.1.0",
-  "private": true,
-  "main": "public/electron.js",
-  "dependencies": {
-    "@testing-library/jest-dom": "^5.11.4",
-    "@testing-library/react": "^11.1.0",
-    "@testing-library/user-event": "^12.1.10",
-    "@thelevicole/youtube-to-html5-loader": "^4.0.1",
-    "@types/jest": "^26.0.15",
-    "@types/node": "^12.0.0",
-    "@types/react": "^17.0.0",
-    "@types/react-dom": "^17.0.0",
-    "electron-is-dev": "^2.0.0",
-    "react": "^17.0.2",
-    "react-dom": "^17.0.2",
-    "react-scripts": "4.0.3",
-    "twgl.js": "https://github.com/greggman/twgl.js",
-    "typescript": "^4.1.2",
-    "web-vitals": "^1.0.1",
-    "ytdl-core": "https://github.com/fent/node-ytdl-core"
-  },
-  "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject",
-    "electron-dev": "concurrently \"BROWSER=none yarn start\" \"wait-on http://localhost:3000 && electron .\""
-  },
-  "eslintConfig": {
-    "extends": [
-      "react-app",
-      "react-app/jest"
-    ]
-  },
-  "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
-  },
-  "devDependencies": {
-    "concurrently": "^6.2.0",
-    "electron": "^13.1.6",
-    "electron-builder": "^22.11.7",
-    "wait-on": "^6.0.0"
-  }
+	"name": "fluid-sim-video-music-visualizer",
+	"version": "0.1.0",
+	"private": true,
+	"homepage": "https://capsadmin.github.io/fluid-sim-audio-video-visualizer",
+	"dependencies": {
+		"@testing-library/jest-dom": "^5.11.4",
+		"@testing-library/react": "^11.1.0",
+		"@testing-library/user-event": "^12.1.10",
+		"@thelevicole/youtube-to-html5-loader": "^4.0.1",
+		"@types/jest": "^26.0.15",
+		"@types/node": "^12.0.0",
+		"@types/react": "^17.0.0",
+		"@types/react-dom": "^17.0.0",
+		"react": "^17.0.2",
+		"react-dom": "^17.0.2",
+		"react-scripts": "4.0.3",
+		"twgl.js": "https://github.com/greggman/twgl.js",
+		"typescript": "^4.1.2",
+		"web-vitals": "^1.0.1"
+	},
+	"scripts": {
+		"start": "react-scripts start",
+		"build": "react-scripts build",
+		"test": "react-scripts test",
+		"eject": "react-scripts eject",
+		"predeploy": "npm run build",
+		"deploy": "gh-pages -d build"
+	},
+	"eslintConfig": {
+		"extends": [
+			"react-app",
+			"react-app/jest"
+		]
+	},
+	"browserslist": {
+		"production": [
+			">0.2%",
+			"not dead",
+			"not op_mini all"
+		],
+		"development": [
+			"last 1 chrome version",
+			"last 1 firefox version",
+			"last 1 safari version"
+		]
+	},
+	"devDependencies": {
+		"gh-pages": "^3.2.3"
+	}
 }

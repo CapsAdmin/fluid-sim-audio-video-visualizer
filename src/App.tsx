@@ -58,7 +58,7 @@ const addAudioSource = async (deviceId: string) => {
 	console.log("started listening to " + deviceId)
 }
 
-let streamConnections = new WeakMap<HTMLVideoElement, MediaElementAudioSourceNode>()
+let streamConnections = new WeakMap<HTMLMediaElement, MediaElementAudioSourceNode>()
 
 const connectVideoToAudio = () => {
 	const video = document.getElementById("videoPlayer") as HTMLVideoElement
@@ -135,13 +135,6 @@ function App() {
 	const simRef = useRef<Simulation | null>(null)
 	const [devices, setDevices] = useState<MediaDeviceInfo[]>([])
 	const [, render] = useState({})
-
-	useEffect(() => {
-		;(async () => {
-			setDevices(await navigator.mediaDevices.enumerateDevices())
-		})()
-		window.scrollTo(0, -99999)
-	}, [])
 
 	return (
 		<div className="App">
@@ -235,7 +228,7 @@ function App() {
 							if (info.kind === "videoinput") {
 								return (
 									<option key={info.deviceId} value={info.deviceId}>
-										{info.label}
+										{info.label || "unknown device: " + info.deviceId}
 									</option>
 								)
 							}
@@ -255,12 +248,28 @@ function App() {
 
 				<h2>extra audio input</h2>
 				<ul>
+					{devices.length === 0 ? (
+						<button
+							onClick={async () => {
+								try {
+									await navigator.mediaDevices.getUserMedia({ audio: true })
+								} catch (err) {}
+								try {
+									await navigator.mediaDevices.getUserMedia({ video: true })
+								} catch (err) {}
+								setDevices(await navigator.mediaDevices.enumerateDevices())
+							}}
+						>
+							request access
+						</button>
+					) : null}
+
 					{devices.map((info) => {
 						if (info.kind === "audioinput") {
 							return (
 								<li key={info.deviceId}>
 									<input
-										title={info.label}
+										title={info.label || "unknown device: " + info.deviceId}
 										type="checkbox"
 										checked={audioSources.has(info.deviceId)}
 										onChange={async (e) => {
@@ -282,7 +291,30 @@ function App() {
 				</ul>
 
 				<h2>video player</h2>
+
 				<video key="videoplayer" id="videoPlayer" style={{ width: 512 }} controls crossOrigin="anonymous" src="" autoPlay />
+				<h2>extra audio player</h2>
+				<input
+					type="file"
+					id="upload"
+					onChange={(event) => {
+						const files = event.target.files
+						if (!files) return
+						const audioPlayer = document.getElementById("audioplayer") as HTMLAudioElement
+						if (!audioPlayer) return
+
+						audioPlayer.src = URL.createObjectURL(files[0])
+						ensureAudioContext()
+
+						const audioSource = audioContext.createMediaElementSource(audioPlayer)
+						streamConnections.set(audioPlayer, audioSource)
+
+						audioSource.connect(audioAnalyser)
+						audioSource.connect(audioContext.destination)
+					}}
+				/>
+
+				<audio loop key="audioplayer" id="audioplayer" style={{ width: 512 }} controls crossOrigin="anonymous" src="" autoPlay />
 			</div>
 		</div>
 	)
