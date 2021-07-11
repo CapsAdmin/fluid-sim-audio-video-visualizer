@@ -91,7 +91,9 @@ const setVideoSource = async (source: string) => {
 
 	if (source === "desktop") {
 		const desktopStream = await (navigator.mediaDevices as MediaDevices & { getDisplayMedia: (opts: MediaStreamConstraints) => MediaStream }).getDisplayMedia({
-			video: true,
+			video: {
+				frameRate: 300,
+			},
 			audio: {
 				echoCancellation: false,
 				noiseSuppression: false,
