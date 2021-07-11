@@ -4,7 +4,6 @@ import exampleVideos from "./assets/videos.json"
 
 let audioContext = null as unknown as AudioContext
 let audioAnalyser = null as unknown as AnalyserNode
-let fftArray = null as unknown as Float32Array
 
 const ensureAudioContext = () => {
 	if (audioContext) return
@@ -14,10 +13,8 @@ const ensureAudioContext = () => {
 	})
 
 	audioAnalyser = audioContext.createAnalyser()
-	audioAnalyser.smoothingTimeConstant = 0.0
-	audioAnalyser.fftSize = 2048
-
-	fftArray = new Float32Array(audioAnalyser.frequencyBinCount)
+	audioAnalyser.smoothingTimeConstant = 1
+	audioAnalyser.fftSize = 4096
 }
 
 const audioSources = new Map<string, MediaStreamAudioSourceNode>()
@@ -137,7 +134,11 @@ function App() {
 	const [, render] = useState({})
 
 	return (
-		<div className="App">
+		<div
+			onMouseDown={() => {
+				ensureAudioContext()
+			}}
+		>
 			<Simulation
 				onLoad={(sim) => {
 					simRef.current = sim
@@ -145,8 +146,11 @@ function App() {
 					const video = document.getElementById("videoPlayer") as HTMLVideoElement
 					if (!video) return
 
+					let fftArray: Float32Array
+
 					sim.PreDraw = () => {
 						if (audioAnalyser) {
+							fftArray = fftArray || new Float32Array(audioAnalyser.frequencyBinCount)
 							audioAnalyser.getFloatTimeDomainData(fftArray)
 							sim.UpdateFFT(fftArray)
 						}
@@ -167,14 +171,17 @@ function App() {
                         float v = PIXEL(0.0, 0.0);
                         v = PIXEL(
                             sin(PIXEL(v, 0.0)  - PIXEL(-v, 0.0) + 3.1415) * v * 0.4, 
-                            cos(PIXEL(0.0, -v) - PIXEL(0.0 , v) - 1.57) * v * 0.4
+                            cos(PIXEL(0.0, -v) - PIXEL(0.0 , v) - 1.57)   * v * 0.4
                         );
+
+                        v *= 1.0001;
+
                         v += pow(FFT(pow(v*0.1, 1.5) * 0.25) * 1.5, 3.0);
                         v -= pow(length(texture(video_tex, uv * vec2(1.0, -1.0))) + 0.05, 3.0) * 0.08;
                         v *= 0.925 + FFT(v)*0.1;
 
                         if (iMouse.z > 0.0) {
-                            v += smoothstep(100.0, 0.5, length(iMouse.xy - coordinates)) * 0.05;
+                            v += smoothstep(100.0, 0.5, length(iMouse.xy - coordinates)) * 1.5;
                         }
                         
                         out_color.r = v;
@@ -188,7 +195,8 @@ function App() {
                         vec2 uv = coordinates.xy/iResolution.xy;
                         float v = texture(iChannel0, uv).r * 1.5;
                             
-                        vec3 color = pow(vec3(cos(v), tan(v), sin(v)) * 0.5 + 0.5, vec3(0.5));
+                        vec3 color = pow(vec3(cos(v), tan(v), sin(v)) * 0.5 + 0.5, vec3(0.15));
+                        
                         vec3 e = vec3(vec2(1.0) / iResolution.xy, 0.0);
                         vec3 grad = normalize(vec3(
                             texture(iChannel0, uv + e.xz).x - texture(iChannel0, uv - e.xz).x, 

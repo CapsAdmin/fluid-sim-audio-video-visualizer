@@ -48,8 +48,13 @@ class GLRenderer extends React.Component {
 	}
 }
 
+interface Props {
+	simulation: string
+	shade: string
+	onLoad: (sim: Simulation) => void
+}
 export class Simulation extends GLRenderer {
-	props: { simulation: string; shade: string; onLoad: (sim: Simulation) => void }
+	props: Props
 
 	frame = 0
 	rectangle: twgl.BufferInfo = null as unknown as twgl.BufferInfo
@@ -62,7 +67,7 @@ export class Simulation extends GLRenderer {
 	uniforms: { [key: string]: any } = {}
 	mousePos = { x: 0, y: 0, z: 0 }
 
-	constructor(props: { simulation: string; shade: string; onLoad: (sim: Simulation) => void }) {
+	constructor(props: Props) {
 		super(props)
 		this.props = props
 	}
@@ -188,7 +193,7 @@ export class Simulation extends GLRenderer {
 
 			return {
 				x: x - rect.left,
-				y: x - rect.top,
+				y: y - rect.top,
 			}
 		}
 
