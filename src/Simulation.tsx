@@ -1,4 +1,4 @@
-import React from "react"
+import React, { ReactNode } from "react"
 import * as twgl from "twgl.js"
 import noiseImage from "./assets/noise.png"
 
@@ -59,10 +59,7 @@ export class Simulation extends GLRenderer {
 	noiseTexture: WebGLTexture = null as unknown as WebGLTexture
 	fftTexture: WebGLTexture = null as unknown as WebGLTexture
 	videoTexture: WebGLTexture = null as unknown as WebGLTexture
-	audioContext: AudioContext = null as unknown as AudioContext
 	fftArray: Float32Array = null as unknown as Float32Array
-	audioAnalyser: AnalyserNode = null as unknown as AnalyserNode
-	video: HTMLVideoElement = null as unknown as HTMLVideoElement
 	uniforms: { [key: string]: any } = {}
 	startCapture: any
 	copyVideo = false
@@ -72,7 +69,6 @@ export class Simulation extends GLRenderer {
 		super(props)
 		this.props = props
 	}
-
 	Start(gl: WebGL2RenderingContext) {
 		gl.canvas.width = document.documentElement.clientWidth
 		gl.canvas.height = document.documentElement.clientHeight
@@ -120,173 +116,78 @@ export class Simulation extends GLRenderer {
       uniform vec3 iMouse;
     `
 
-		this.simulationProgram = twgl.createProgramInfo(gl, [
-			vertexCode,
-			`${header}
+		this.simulationProgram = twgl.createProgramInfo(
+			gl,
+			[
+				vertexCode,
+				`${header}
             uniform sampler2D iChannel0;
             uniform int iFrame;
             ${this.props.simulation}
           `,
-		])
+			],
+			(msg, lineOffset) => {
+				if (msg) {
+					throw new Error(msg)
+				}
+			},
+		)
 
-		this.shadeProgram = twgl.createProgramInfo(gl, [
-			vertexCode,
-			`${header}
+		this.shadeProgram = twgl.createProgramInfo(
+			gl,
+			[
+				vertexCode,
+				`${header}
             uniform sampler2D iChannel0;
             ${this.props.shade}
             `,
-		])
+			],
+			(msg, lineOffset) => {
+				if (msg) {
+					throw new Error(msg)
+				}
+			},
+		)
 
 		this.noiseTexture = twgl.createTexture(gl, {
 			src: noiseImage,
 		})
 
-		this.fftTexture = twgl.createTexture(gl, {
-			min: gl.LINEAR,
-			wrap: gl.REPEAT,
-		})
-
-		this.videoTexture = twgl.createTexture(gl, {
-			min: gl.LINEAR,
-			mag: gl.LINEAR,
-			wrap: gl.REPEAT,
-		})
-
 		this.uniforms = {}
 
 		this.SetupMouse(gl)
-
-		if (!this.video) {
-			let video = document.createElement("video")
-
-			document.body.appendChild(video)
-
-			//let source = this.audioContext.createMediaElementSource(video)
-			//source.connect(this.audioAnalyser)
-			//this.audioAnalyser.connect(this.audioContext.destination)
-
-			var playing = false
-			var timeupdate = false
-
-			video.autoplay = true
-			video.muted = false
-			video.loop = true
-			video.controls = true
-
-			const checkReady = () => {
-				if (playing && timeupdate) {
-					this.copyVideo = true
-				}
-			}
-
-			video.addEventListener(
-				"playing",
-				function () {
-					playing = true
-					checkReady()
-				},
-				true,
-			)
-
-			video.addEventListener(
-				"timeupdate",
-				function () {
-					timeupdate = true
-					checkReady()
-				},
-				true,
-			)
-
-			this.startCapture = async () => {
-				const videoStream = await (navigator.mediaDevices as MediaDevices & { getDisplayMedia: (opts: MediaStreamConstraints) => MediaStream }).getDisplayMedia({
-					video: true,
-					audio: {
-						echoCancellation: false,
-						noiseSuppression: false,
-						autoGainControl: false,
-						channelCount: 2,
-					},
-				})
-
-				const audioStream = await navigator.mediaDevices.getUserMedia({
-					video: false,
-					audio: {
-						echoCancellation: false,
-						noiseSuppression: false,
-						autoGainControl: false,
-						channelCount: 2,
-					},
-				})
-
-				let context = new AudioContext({
-					latencyHint: "interactive",
-				})
-
-				const desktopSource = context.createMediaStreamSource(videoStream)
-				const voiceSource = context.createMediaStreamSource(audioStream)
-
-				let analyser = context.createAnalyser()
-				//analyser.minDecibels = -90
-				//analyser.maxDecibels = -10
-				analyser.smoothingTimeConstant = 1.0
-				analyser.fftSize = 2048
-
-				var bufferLength = analyser.frequencyBinCount
-				this.fftArray = new Float32Array(bufferLength)
-
-				let gain = context.createGain()
-				gain.gain.value = 0.85
-				desktopSource.connect(gain)
-
-				gain.connect(analyser)
-				voiceSource.connect(analyser)
-
-				desktopSource.connect(context.destination)
-				voiceSource.connect(context.destination)
-
-				const stream = new MediaStream([...videoStream.getVideoTracks()])
-
-				this.audioAnalyser = analyser
-				this.audioContext = context
-
-				video.srcObject = stream
-			}
-
-			/*
-			video.setAttribute("data-yt2html5", "https://www.youtube.com/watch?v=3KyKxu27OHU")
-			const YouTubeToHtml5 = require("@thelevicole/youtube-to-html5-loader")
-			;(globalThis as any).LOL = new YouTubeToHtml5({ withAudio: true })
-            
-			import("./assets/vhsintros.mp4").then((res) => {
-                video.src = res.default
-			})
-            */
-			video.volume = 1
-
-			this.video = video
-		}
-
 		this.props.onLoad(this)
 	}
 
-	UpdateTexture() {
-		if (!this.copyVideo) return
-
+	UpdateTexture(video: HTMLVideoElement) {
 		const gl = this.glContext
-		const level = 0
-		const internalFormat = gl.RGBA
-		const srcFormat = gl.RGBA
-		const srcType = gl.UNSIGNED_BYTE
+
+		if (!this.videoTexture) {
+			this.videoTexture = twgl.createTexture(gl, {
+				min: gl.LINEAR,
+				mag: gl.LINEAR,
+				wrap: gl.REPEAT,
+			})
+			this.uniforms.video_tex = this.videoTexture
+		}
+
 		gl.bindTexture(gl.TEXTURE_2D, this.videoTexture)
-		gl.texImage2D(gl.TEXTURE_2D, level, internalFormat, srcFormat, srcType, this.video)
+		gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video)
 	}
 
-	UpdateFFT() {
-		if (!this.audioAnalyser) return
-		this.audioAnalyser.getFloatTimeDomainData(this.fftArray)
+	UpdateFFT(array: Float32Array) {
 		const gl = this.glContext
+
+		if (!this.fftTexture) {
+			this.fftTexture = twgl.createTexture(gl, {
+				min: gl.LINEAR,
+				wrap: gl.REPEAT,
+			})
+			this.uniforms.fft_tex = this.fftTexture
+		}
+
 		gl.bindTexture(gl.TEXTURE_2D, this.fftTexture)
-		gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32F, this.fftArray.length, 1, 0, gl.RED, gl.FLOAT, this.fftArray)
+		gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32F, array.length, 1, 0, gl.RED, gl.FLOAT, array)
 	}
 
 	SetupMouse(gl: WebGL2RenderingContext) {
@@ -345,6 +246,8 @@ export class Simulation extends GLRenderer {
 		}
 	}
 
+	PreDraw() {}
+
 	Draw(gl: WebGL2RenderingContext, time: number) {
 		const canvas = gl.canvas as HTMLCanvasElement
 
@@ -354,8 +257,7 @@ export class Simulation extends GLRenderer {
 			}
 		}
 
-		this.UpdateTexture()
-		this.UpdateFFT()
+		this.PreDraw()
 
 		let u = this.uniforms
 
@@ -365,8 +267,6 @@ export class Simulation extends GLRenderer {
 		u.iMouse = [this.mouse_pos.x, -this.mouse_pos.y + gl.canvas.height, this.mouse_pos.z]
 		u.iTime = time * 0.0015
 		u.noise_tex = this.noiseTexture
-		u.video_tex = this.videoTexture
-		u.fft_tex = this.fftTexture
 
 		u.iChannel0 = this.buffers[1].attachments[0]
 
