@@ -176,10 +176,10 @@ function App() {
                             cos(PIXEL(0.0, -v) - PIXEL(0.0 , v) - 1.57)   * v * 0.4
                         );
 
-                        v *= 1.0001;
+                        v *= 1.0+FFT(0.025)*1.5;
 
                         v += pow(FFT(pow(v*0.1, 1.5) * 0.25) * 1.5, 3.0);
-                        v -= pow(length(texture(video_tex, uv * vec2(1.0, -1.0))) + 0.05, 3.0) * 0.08;
+                        v += pow(length(texture(video_tex, uv * vec2(1.0, -1.0))) + 0.05, 3.0) * 0.08;
                         v *= 0.925 + FFT(v)*0.1;
 
                         if (iMouse.z > 0.0) {
@@ -197,7 +197,7 @@ function App() {
                         vec2 uv = coordinates.xy/iResolution.xy;
                         float v = texture(iChannel0, uv).r * 1.5;
                             
-                        vec3 color = pow(vec3(cos(v), tan(v), sin(v)) * 0.5 + 0.5, vec3(0.15));
+                        vec3 color = pow(vec3(cos(v), sin(v), sin(v)) * 0.5 + 0.5, vec3(0.15));
                         
                         vec3 e = vec3(vec2(1.0) / iResolution.xy, 0.0);
                         vec3 grad = normalize(vec3(
