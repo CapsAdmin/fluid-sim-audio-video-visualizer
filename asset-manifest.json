@@ -1,8 +1,8 @@
 {
   "files": {
     "main.css": "/fluid-sim-audio-video-visualizer/static/css/main.c20c1cdb.chunk.css",
-    "main.js": "/fluid-sim-audio-video-visualizer/static/js/main.2e2a127e.chunk.js",
-    "main.js.map": "/fluid-sim-audio-video-visualizer/static/js/main.2e2a127e.chunk.js.map",
+    "main.js": "/fluid-sim-audio-video-visualizer/static/js/main.ddbe51f0.chunk.js",
+    "main.js.map": "/fluid-sim-audio-video-visualizer/static/js/main.ddbe51f0.chunk.js.map",
     "runtime-main.js": "/fluid-sim-audio-video-visualizer/static/js/runtime-main.4ca8c8a4.js",
     "runtime-main.js.map": "/fluid-sim-audio-video-visualizer/static/js/runtime-main.4ca8c8a4.js.map",
     "static/js/2.0f5003fc.chunk.js": "/fluid-sim-audio-video-visualizer/static/js/2.0f5003fc.chunk.js",
@@ -17,6 +17,6 @@
     "static/js/runtime-main.4ca8c8a4.js",
     "static/js/2.0f5003fc.chunk.js",
     "static/css/main.c20c1cdb.chunk.css",
-    "static/js/main.2e2a127e.chunk.js"
+    "static/js/main.ddbe51f0.chunk.js"
   ]
 }
