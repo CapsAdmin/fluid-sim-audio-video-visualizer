@@ -65,7 +65,10 @@ const connectVideoToAudio = () => {
 	if (!video) return
 	ensureAudioContext()
 
-	if (streamConnections.has(video)) return
+	const prev = streamConnections.get(video)
+	if (prev) {
+		return
+	}
 
 	const audioSource = audioContext.createMediaElementSource(video)
 	streamConnections.set(video, audioSource)
@@ -74,9 +77,20 @@ const connectVideoToAudio = () => {
 	audioSource.connect(audioContext.destination)
 }
 
+let streamSession: null | MediaStream = null
+
 const setVideoSource = async (source: string) => {
 	const video = document.getElementById("videoPlayer") as HTMLVideoElement
 	if (!video) return
+
+	ensureAudioContext()
+
+	if (streamSession) {
+		for (let track of streamSession.getTracks()) {
+			track.stop()
+		}
+		video.srcObject = null
+	}
 
 	if (source === "desktop") {
 		const desktopStream = await (navigator.mediaDevices as MediaDevices & { getDisplayMedia: (opts: MediaStreamConstraints) => MediaStream }).getDisplayMedia({
@@ -90,9 +104,13 @@ const setVideoSource = async (source: string) => {
 			},
 		})
 
-		const desktopSource = audioContext.createMediaStreamSource(desktopStream)
-		desktopSource.connect(audioAnalyser)
-		desktopSource.connect(audioContext.destination)
+		if (desktopStream.getAudioTracks().length > 0) {
+			const desktopSource = audioContext.createMediaStreamSource(desktopStream)
+			desktopSource.connect(audioAnalyser)
+			desktopSource.connect(audioContext.destination)
+		}
+
+		streamSession = desktopStream
 
 		const stream = new MediaStream([...desktopStream.getVideoTracks()])
 
@@ -136,7 +154,7 @@ function App() {
 
 					sim.PreDraw = () => {
 						if (audioAnalyser) {
-							audioAnalyser.getFloatTimeDomainData(fftArray) // move me out
+							audioAnalyser.getFloatTimeDomainData(fftArray)
 							sim.UpdateFFT(fftArray)
 						}
 
@@ -151,9 +169,7 @@ function App() {
 
                     void mainImage(out vec4 out_color, in vec2 coordinates)
                     {    
-                        vec2 uv = coordinates.xy / iResolution.xy;
-
-                        
+                        vec2 uv = coordinates.xy / iResolution.xy;                  
                         
                         float v = PIXEL(0.0, 0.0);
                         v = PIXEL(
@@ -165,8 +181,8 @@ function App() {
                         v *= 0.925 + FFT(v)*0.1;
 
                         if (iMouse.z > 0.0) {
-                                v += smoothstep(100.0, 0.5, length(iMouse.xy - coordinates)) * 0.05;
-                            }
+                            v += smoothstep(100.0, 0.5, length(iMouse.xy - coordinates)) * 0.05;
+                        }
                         
                         out_color.r = v;
                     }
@@ -196,8 +212,48 @@ function App() {
                     `}
 			></Simulation>
 
-			<div>
-				<h2>audio inputs</h2>
+			<div style={{ margin: 30 }}>
+				<h2>audio and video input</h2>
+				<ul>
+					<select
+						value={currentVideoSource}
+						onChange={async (e) => {
+							await setVideoSource(e.currentTarget.value)
+							await connectVideoToAudio()
+							render({})
+						}}
+					>
+						<option key={"none"} value={"none"}>
+							{"None"}
+						</option>
+
+						<option disabled>── input devices ──</option>
+						<option key={"desktop"} value={"desktop"}>
+							{"Desktop"}
+						</option>
+						{devices.map((info) => {
+							if (info.kind === "videoinput") {
+								return (
+									<option key={info.deviceId} value={info.deviceId}>
+										{info.label}
+									</option>
+								)
+							}
+							return null
+						})}
+						<option disabled>── sample videos ──</option>
+
+						{exampleVideos.map((info) => {
+							return (
+								<option key={info.source} value={info.source}>
+									{info.title}
+								</option>
+							)
+						})}
+					</select>
+				</ul>
+
+				<h2>extra audio input</h2>
 				<ul>
 					{devices.map((info) => {
 						if (info.kind === "audioinput") {
@@ -224,48 +280,7 @@ function App() {
 						return null
 					})}
 				</ul>
-			</div>
 
-			<div>
-				<h2>video input</h2>
-				<ul>
-					<select
-						value={currentVideoSource}
-						onChange={(e) => {
-							ensureAudioContext()
-							setVideoSource(e.currentTarget.value)
-							connectVideoToAudio()
-							render({})
-						}}
-					>
-						<option key={"none"} value={"none"}>
-							{"None"}
-						</option>
-						<option key={"desktop"} value={"desktop"}>
-							{"Desktop"}
-						</option>
-						{devices.map((info) => {
-							if (info.kind === "videoinput") {
-								return (
-									<option key={info.deviceId} value={info.deviceId}>
-										{info.label}
-									</option>
-								)
-							}
-							return null
-						})}
-						{exampleVideos.map((info) => {
-							return (
-								<option key={info.source} value={info.source}>
-									{info.title}
-								</option>
-							)
-						})}
-					</select>
-				</ul>
-			</div>
-
-			<div>
 				<h2>video player</h2>
 				<video key="videoplayer" id="videoPlayer" style={{ width: 512 }} controls crossOrigin="anonymous" src="" autoPlay />
 			</div>

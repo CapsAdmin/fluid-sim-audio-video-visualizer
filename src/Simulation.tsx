@@ -1,6 +1,5 @@
 import React, { ReactNode } from "react"
 import * as twgl from "twgl.js"
-import noiseImage from "./assets/noise.png"
 
 class GLRenderer extends React.Component {
 	glContext: WebGL2RenderingContext = null as unknown as WebGL2RenderingContext
@@ -22,7 +21,9 @@ class GLRenderer extends React.Component {
 		this.Start(this.glContext)
 
 		window.addEventListener("resize", () => {
-			this.Start(this.glContext)
+			if (this.glContext) {
+				this.Start(this.glContext)
+			}
 		})
 	}
 
@@ -56,14 +57,10 @@ export class Simulation extends GLRenderer {
 	buffers: twgl.FramebufferInfo[] = null as unknown as twgl.FramebufferInfo[]
 	simulationProgram: twgl.ProgramInfo = null as unknown as twgl.ProgramInfo
 	shadeProgram: twgl.ProgramInfo = null as unknown as twgl.ProgramInfo
-	noiseTexture: WebGLTexture = null as unknown as WebGLTexture
 	fftTexture: WebGLTexture = null as unknown as WebGLTexture
 	videoTexture: WebGLTexture = null as unknown as WebGLTexture
-	fftArray: Float32Array = null as unknown as Float32Array
 	uniforms: { [key: string]: any } = {}
-	startCapture: any
-	copyVideo = false
-	mouse_pos = { x: 0, y: 0, z: 0 }
+	mousePos = { x: 0, y: 0, z: 0 }
 
 	constructor(props: { simulation: string; shade: string; onLoad: (sim: Simulation) => void }) {
 		super(props)
@@ -110,7 +107,6 @@ export class Simulation extends GLRenderer {
       
       uniform float iTime;
       uniform vec2 iResolution;
-      uniform sampler2D noise_tex;
       uniform sampler2D video_tex;
       uniform sampler2D fft_tex;
       uniform vec3 iMouse;
@@ -149,19 +145,6 @@ export class Simulation extends GLRenderer {
 			},
 		)
 
-		this.noiseTexture = twgl.createTexture(gl, {
-			src: noiseImage,
-		})
-
-		this.uniforms = {}
-
-		this.SetupMouse(gl)
-		this.props.onLoad(this)
-	}
-
-	UpdateTexture(video: HTMLVideoElement) {
-		const gl = this.glContext
-
 		if (!this.videoTexture) {
 			this.videoTexture = twgl.createTexture(gl, {
 				min: gl.LINEAR,
@@ -171,13 +154,6 @@ export class Simulation extends GLRenderer {
 			this.uniforms.video_tex = this.videoTexture
 		}
 
-		gl.bindTexture(gl.TEXTURE_2D, this.videoTexture)
-		gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, video)
-	}
-
-	UpdateFFT(array: Float32Array) {
-		const gl = this.glContext
-
 		if (!this.fftTexture) {
 			this.fftTexture = twgl.createTexture(gl, {
 				min: gl.LINEAR,
@@ -186,12 +162,26 @@ export class Simulation extends GLRenderer {
 			this.uniforms.fft_tex = this.fftTexture
 		}
 
+		this.SetupMouse(gl)
+		this.props.onLoad(this)
+	}
+
+	UpdateTexture(video: HTMLVideoElement) {
+		const gl = this.glContext
+
+		gl.bindTexture(gl.TEXTURE_2D, this.videoTexture)
+		gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, video)
+	}
+
+	UpdateFFT(array: Float32Array) {
+		const gl = this.glContext
+
 		gl.bindTexture(gl.TEXTURE_2D, this.fftTexture)
 		gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32F, array.length, 1, 0, gl.RED, gl.FLOAT, array)
 	}
 
 	SetupMouse(gl: WebGL2RenderingContext) {
-		this.mouse_pos = { x: 0, y: 0, z: 0 }
+		this.mousePos = { x: 0, y: 0, z: 0 }
 
 		const getRelativeMousePosition = (x: number, y: number, target: HTMLCanvasElement) => {
 			var rect = target.getBoundingClientRect()
@@ -215,34 +205,34 @@ export class Simulation extends GLRenderer {
 		const canvas = gl.canvas as HTMLCanvasElement
 
 		canvas.onmousemove = (evt) => {
-			this.mouse_pos = { z: evt.buttons, ...getNoPaddingNoBorderCanvasRelativeMousePosition(evt.clientX, evt.clientY, gl.canvas as HTMLCanvasElement) }
+			this.mousePos = { z: evt.buttons, ...getNoPaddingNoBorderCanvasRelativeMousePosition(evt.clientX, evt.clientY, gl.canvas as HTMLCanvasElement) }
 		}
 		canvas.onmousedown = (evt) => {
-			this.mouse_pos = { z: evt.buttons, ...getNoPaddingNoBorderCanvasRelativeMousePosition(evt.clientX, evt.clientY, gl.canvas as HTMLCanvasElement) }
+			this.mousePos = { z: evt.buttons, ...getNoPaddingNoBorderCanvasRelativeMousePosition(evt.clientX, evt.clientY, gl.canvas as HTMLCanvasElement) }
 		}
 		canvas.ontouchmove = (evt) => {
 			let touch = evt.touches.item(0)
 			if (!touch) return
 
-			this.mouse_pos = { z: 1, ...getNoPaddingNoBorderCanvasRelativeMousePosition(touch.clientX, touch.clientY, gl.canvas as HTMLCanvasElement) }
+			this.mousePos = { z: 1, ...getNoPaddingNoBorderCanvasRelativeMousePosition(touch.clientX, touch.clientY, gl.canvas as HTMLCanvasElement) }
 		}
 		canvas.ontouchstart = (evt) => {
 			let touch = evt.touches.item(0)
 			if (!touch) return
 
-			this.mouse_pos = { z: 1, ...getNoPaddingNoBorderCanvasRelativeMousePosition(touch.clientX, touch.clientY, gl.canvas as HTMLCanvasElement) }
+			this.mousePos = { z: 1, ...getNoPaddingNoBorderCanvasRelativeMousePosition(touch.clientX, touch.clientY, gl.canvas as HTMLCanvasElement) }
 		}
 
 		canvas.onmouseup = () => {
-			this.mouse_pos.z = 0
+			this.mousePos.z = 0
 		}
 
 		canvas.ontouchend = () => {
-			this.mouse_pos.z = 0
+			this.mousePos.z = 0
 		}
 
 		canvas.ontouchcancel = () => {
-			this.mouse_pos.z = 0
+			this.mousePos.z = 0
 		}
 	}
 
@@ -264,9 +254,8 @@ export class Simulation extends GLRenderer {
 		u.iResolution = [gl.canvas.width, gl.canvas.height]
 
 		u.iFrame = this.frame
-		u.iMouse = [this.mouse_pos.x, -this.mouse_pos.y + gl.canvas.height, this.mouse_pos.z]
+		u.iMouse = [this.mousePos.x, -this.mousePos.y + gl.canvas.height, this.mousePos.z]
 		u.iTime = time * 0.0015
-		u.noise_tex = this.noiseTexture
 
 		u.iChannel0 = this.buffers[1].attachments[0]
 
