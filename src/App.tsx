@@ -138,7 +138,6 @@ function App() {
 
     useEffect(() => {
         (async () => {
-            console.log(exampleVideos[0].source, "!!!")
             await setVideoSource(exampleVideos[0].source)
             await connectVideoToAudio()
             setTimeout(() => {
