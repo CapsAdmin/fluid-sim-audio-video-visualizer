@@ -118,6 +118,7 @@ const setVideoSource = async (source: string) => {
 		video.src = ""
 	} else if (source.startsWith("http")) {
 		video.src = source
+        video.play()
 	} else {
 		video.srcObject = await navigator.mediaDevices.getUserMedia({
 			video: {
@@ -134,6 +135,18 @@ function App() {
 	const simRef = useRef<Simulation | null>(null)
 	const [devices, setDevices] = useState<MediaDeviceInfo[]>([])
 	const [, render] = useState({})
+
+    useEffect(() => {
+        (async () => {
+            console.log(exampleVideos[0].source, "!!!")
+            await setVideoSource(exampleVideos[0].source)
+            await connectVideoToAudio()
+            setTimeout(() => {
+                
+                render({})
+            }, 100);
+        })()
+    }, [])
 
 	return (
 		<div
